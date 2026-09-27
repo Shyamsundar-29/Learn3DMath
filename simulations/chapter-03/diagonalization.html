@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Matrix Diagonalization Visualizer</title>
+  <style>
+    body { font-family: sans-serif; background: #0f172a; color: #f8fafc; padding: 20px; text-align: center; }
+    .grid { display: flex; justify-content: center; gap: 15px; margin-top: 20px; }
+    .card { background: #1e293b; padding: 15px; border-radius: 8px; width: 220px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+    canvas { background: #020617; border: 1px solid #334155; border-radius: 6px; }
+    h3 { color: #38bdf8; margin-top: 0; }
+  </style>
+</head>
+<body data-math-topic="diagonalization">
+  <h2>Topic 6: Matrix Diagonalization (M = S D S⁻¹)</h2>
+  <p><strong>Think of this as a three-step shortcut:</strong> turn the axes, stretch along those axes, then turn back.</p>
+  <p>Instead of trying to understand every number in M at once, follow the same vector through the four pictures below.</p>
+
+  <div class="grid">
+    <div class="card">
+      <h3>1. Start: original arrow</h3>
+      <canvas id="cvs1" width="200" height="200"></canvas>
+      <p>Start with v = (1, 2).</p>
+    </div>
+    <div class="card">
+      <h3>2. Change to special axes</h3>
+      <canvas id="cvs2" width="200" height="200"></canvas>
+      <p>Step 1: change to the matrix’s “natural” directions.</p>
+    </div>
+    <div class="card">
+      <h3>3. Stretch on those axes</h3>
+      <canvas id="cvs3" width="200" height="200"></canvas>
+      <p>Step 2: stretch one direction by 3 and the other by 1.</p>
+    </div>
+    <div class="card">
+      <h3>4. Return to normal axes</h3>
+      <canvas id="cvs4" width="200" height="200"></canvas>
+      <p>Step 3: change back. This is the same result as Mv.</p>
+    </div>
+  </div>
+
+  <script>
+    // Matrix M = [[2, 1], [1, 2]]
+    // S = [[1, -1], [1, 1]] (Eigenvectors), D = [[3, 0], [0, 1]]
+    const S = [[1, -1], [1, 1]];
+    const InvS = [[0.5, 0.5], [-0.5, 0.5]];
+    const D = [[3, 0], [0, 1]];
+
+    function drawVec(id, vec, color) {
+      const cvs = document.getElementById(id);
+      const ctx = cvs.getContext('2d');
+      ctx.clearRect(0, 0, 200, 200);
+      ctx.save();
+      ctx.translate(100, 100);
+      ctx.scale(1, -1);
+
+      // Axes
+      ctx.strokeStyle = '#334155'; ctx.beginPath();
+      ctx.moveTo(-100,0); ctx.lineTo(100,0); ctx.moveTo(0,-100); ctx.lineTo(0,100); ctx.stroke();
+
+      // Vector
+      ctx.strokeStyle = color; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(vec.x * 25, vec.y * 25); ctx.stroke();
+      ctx.restore();
+    }
+
+    const v = { x: 1, y: 2 };
+    // Step 1: v
+    drawVec('cvs1', v, '#f43f5e');
+
+    // Step 2: S^-1 * v
+    const v2 = { x: InvS[0][0]*v.x + InvS[0][1]*v.y, y: InvS[1][0]*v.x + InvS[1][1]*v.y };
+    drawVec('cvs2', v2, '#a855f7');
+
+    // Step 3: D * S^-1 * v
+    const v3 = { x: D[0][0]*v2.x + D[0][1]*v2.y, y: D[1][0]*v2.x + D[1][1]*v2.y };
+    drawVec('cvs3', v3, '#3b82f6');
+
+    // Step 4: S * D * S^-1 * v = M * v
+    const v4 = { x: S[0][0]*v3.x + S[0][1]*v3.y, y: S[1][0]*v3.x + S[1][1]*v3.y };
+    drawVec('cvs4', v4, '#10b981');
+  </script>
+  <script src="../math-explainer.js"></script>
+</body>
+</html>

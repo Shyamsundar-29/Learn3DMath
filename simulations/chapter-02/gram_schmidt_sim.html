@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Gram-Schmidt Orthogonalization Visualizer</title>
+    <style>
+        body { font-family: sans-serif; background: #1a1c23; color: #e1e4ed; text-align: center; }
+        canvas { background: #121318; border-radius: 8px; border: 1px solid #333; }
+        button { background: #4f46e5; color: white; border: none; padding: 10px 20px; font-size: 16px; border-radius: 5px; cursor: pointer; margin: 10px; }
+        button:hover { background: #6366f1; }
+    </style>
+</head>
+<body>
+    <h2>Gram-Schmidt Orthogonalization Step-by-Step</h2>
+    <canvas id="c" width="500" height="400"></canvas>
+    <div>
+        <button onclick="nextStep()">Next Step</button>
+        <button onclick="reset()">Reset</button>
+    </div>
+    <p id="stepDesc" style="font-weight: bold; font-size: 18px; color: #a5b4fc;"></p>
+
+    <script>
+        const canvas = document.getElementById('c');
+        const ctx = canvas.getContext('2d');
+        const stepDesc = document.getElementById('stepDesc');
+
+        let step = 0;
+        const e1 = { x: 120, y: -40 };
+        const e2 = { x: 80, y: -120 };
+
+        function reset() { step = 0; draw(); }
+        function nextStep() { step = (step + 1) % 3; draw(); }
+
+        function draw() {
+            ctx.clearRect(0, 0, 500, 400);
+            const ox = 250, oy = 300;
+
+            // Base Grid
+            ctx.strokeStyle = '#2d3748';
+            ctx.beginPath();
+            ctx.moveTo(0, oy); ctx.lineTo(500, oy);
+            ctx.moveTo(ox, 0); ctx.lineTo(ox, 400);
+            ctx.stroke();
+
+            if (step === 0) {
+                stepDesc.innerText = "Step 0: Initial Linearly Independent Vectors (e1, e2)";
+                drawArrow(ox, oy, ox + e1.x, oy + e1.y, '#f87171', 'e1');
+                drawArrow(ox, oy, ox + e2.x, oy + e2.y, '#60a5fa', 'e2');
+            } else if (step === 1) {
+                stepDesc.innerText = "Step 1: Set e1' = e1. Project e2 onto e1' (proj_e1' e2)";
+                drawArrow(ox, oy, ox + e1.x, oy + e1.y, '#f87171', "e1'");
+                drawArrow(ox, oy, ox + e2.x, oy + e2.y, '#60a5fa', 'e2');
+
+                // Projection
+                const dot = (e2.x * e1.x + e2.y * e1.y) / (e1.x * e1.x + e1.y * e1.y);
+                const proj = { x: dot * e1.x, y: dot * e1.y };
+                drawArrow(ox, oy, ox + proj.x, oy + proj.y, '#facc15', "proj");
+            } else if (step === 2) {
+                stepDesc.innerText = "Step 2: Subtract projection from e2 to get perpendicular e2'!";
+                drawArrow(ox, oy, ox + e1.x, oy + e1.y, '#f87171', "e1'");
+
+                const dot = (e2.x * e1.x + e2.y * e1.y) / (e1.x * e1.x + e1.y * e1.y);
+                const proj = { x: dot * e1.x, y: dot * e1.y };
+                const e2_prime = { x: e2.x - proj.x, y: e2.y - proj.y };
+
+                drawArrow(ox, oy, ox + e2_prime.x, oy + e2_prime.y, '#4ade80', "e2'");
+            }
+        }
+
+        function drawArrow(fromx, derivedy, tox, toy, color, label) {
+            ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = 3;
+            ctx.beginPath(); ctx.moveTo(fromx, derivedy); ctx.lineTo(tox, toy); ctx.stroke();
+            const angle = Math.atan2(toy - derivedy, tox - fromx);
+            ctx.beginPath(); ctx.moveTo(tox, toy);
+            ctx.lineTo(tox - 10 * Math.cos(angle - Math.PI / 6), toy - 10 * Math.sin(angle - Math.PI / 6));
+            ctx.lineTo(tox - 10 * Math.cos(angle + Math.PI / 6), toy - 10 * Math.sin(angle + Math.PI / 6));
+            ctx.fill();
+            ctx.font = '14px sans-serif'; ctx.fillText(label, tox + 10, toy + 5);
+        }
+
+        draw();
+    </script>
+<script>document.body.dataset.mathTopic='gram-schmidt';</script><script src="../math-explainer.js"></script></body>
+</html>

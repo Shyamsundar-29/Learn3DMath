@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Eigenvalues & Eigenvectors Interactive Field</title>
+  <style>
+    body { font-family: sans-serif; background: #1a1a2e; color: #e9ecef; padding: 20px; text-align: center; }
+    canvas { background: #0f0f1b; border: 2px solid #e94560; border-radius: 8px; cursor: pointer; }
+    .panel { display: flex; justify-content: center; gap: 30px; margin-bottom: 15px; }
+    .box { background: #16213e; padding: 15px; border-radius: 6px; }
+  </style>
+</head>
+<body>
+  <h2>Topic 5: Eigenvalues (λ) & Eigenvectors (v)</h2>
+  <p>Rotate the input vector <strong>v</strong> (Yellow). When <strong>Mv</strong> (Pink) is collinear with <strong>v</strong>, you've found an <strong>eigenvector</strong>!</p>
+
+  <div class="panel">
+    <div class="box">
+      <h3>Matrix M</h3>
+      <p>M = [[ 2.0,  1.0 ],<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[ 1.0,  2.0 ]]</p>
+      <p style="color:#00fff0">Exact Analytical Eigenvalues:<br>λ₁ = 3.0 (v₁ = [1, 1]), λ₂ = 1.0 (v₂ = [-1, 1])</p>
+    </div>
+    <div class="box">
+      <h3>Vector Controls</h3>
+      <label>Angle θ: <input type="range" id="angle" min="0" max="360" value="30" style="width:200px" oninput="draw()"></label>
+      <div id="alignmentInfo" style="font-weight:bold; margin-top:10px;"></div>
+    </div>
+  </div>
+
+  <canvas id="cvs" width="500" height="500"></canvas>
+
+  <script>
+    const cvs = document.getElementById('cvs');
+    const ctx = cvs.getContext('2d');
+    const M = [[2.0, 1.0], [1.0, 2.0]];
+
+    function draw() {
+      const deg = parseFloat(document.getElementById('angle').value);
+      const rad = deg * Math.PI / 180;
+      
+      const v = { x: Math.cos(rad), y: Math.sin(rad) };
+      const Mv = {
+        x: M[0][0] * v.x + M[0][1] * v.y,
+        y: M[1][0] * v.x + M[1][1] * v.y
+      };
+
+      const lenMv = Math.hypot(Mv.x, Mv.y);
+      const dot = (v.x * Mv.x + v.y * Mv.y) / lenMv; // Cosine of angle between v and Mv
+      const isEigen = Math.abs(Math.abs(dot) - 1.0) < 0.005;
+
+      document.getElementById('alignmentInfo').innerHTML = isEigen 
+        ? `<span style="color:#00ff88; font-size:18px;">★ EIGENVECTOR FOUND! λ ≈ ${(lenMv).toFixed(2)} ★</span>`
+        : `<span style="color:#ffaa00;">Searching... Angle between v and Mv = ${(Math.acos(Math.min(1,Math.abs(dot)))*180/Math.PI).toFixed(1)}°</span>`;
+
+      ctx.clearRect(0, 0, cvs.width, cvs.height);
+      ctx.save();
+      ctx.translate(cvs.width / 2, cvs.height / 2);
+      ctx.scale(1, -1);
+
+      const scale = 80;
+
+      // Grid
+      ctx.strokeStyle = '#222';
+      ctx.beginPath();
+      ctx.moveTo(-250, 0); ctx.lineTo(250, 0);
+      ctx.moveTo(0, -250); ctx.lineTo(0, 250);
+      ctx.stroke();
+
+      // Draw Vector v (Yellow)
+      ctx.strokeStyle = '#f1c40f'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(v.x * scale, v.y * scale); ctx.stroke();
+
+      // Draw Transformed Vector Mv (Pink / Green if Eigen)
+      ctx.strokeStyle = isEigen ? '#00ff88' : '#e84393'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(Mv.x * scale, Mv.y * scale); ctx.stroke();
+
+      ctx.restore();
+    }
+
+    draw();
+  </script>
+<script>document.body.dataset.mathTopic='eigen';</script><script src="../math-explainer.js"></script></body>
+</html>

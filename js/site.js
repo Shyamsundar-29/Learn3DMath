@@ -3,6 +3,15 @@ const tree = document.getElementById("book-tree");
 const viewer = document.getElementById("simulation-viewer");
 const chapterName = document.getElementById("chapter-name");
 const topicName = document.getElementById("topic-name");
+const contentsToggle = document.getElementById("contents-toggle");
+const main = document.querySelector("main");
+
+contentsToggle.addEventListener("click", () => {
+  const isCollapsed = main.classList.toggle("contents-collapsed");
+  contentsToggle.setAttribute("aria-expanded", String(!isCollapsed));
+  contentsToggle.setAttribute("title", isCollapsed ? "Show contents" : "Hide contents");
+  contentsToggle.textContent = isCollapsed ? "›" : "‹";
+});
 
 function selectTopic(chapter, topic, button) {
   document.querySelectorAll(".topic-button").forEach((item) => item.classList.remove("selected"));

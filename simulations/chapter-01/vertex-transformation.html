@@ -112,5 +112,5 @@
       buttons.forEach((button) => button.onclick = () => { selectedStage = Number(button.dataset.stage); buttons.forEach((item) => item.classList.toggle('active', item === button)); [title.textContent, text.textContent, formula.textContent] = stageCopy[selectedStage]; draw(); });
       rotation.oninput = update; distance.oninput = update; update();
     </script>
-  </body>
+<script>document.body.dataset.mathTopic='vertex-transformation';</script><script src="../math-explainer.js"></script></body>
 </html>
