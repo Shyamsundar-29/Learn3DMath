@@ -1,10 +1,11 @@
-// L3D app - routing, sidebar, and the Learn / Simulate / C++ tabs of each topic page.
+// L3D app - routing, sidebar, and the Learn / Simulate / C++ / C# tabs of each topic page.
 //
 // Routes (hash based, so the site works when index.html is opened straight from disk):
 //   #/                  home
 //   #/2.2               topic 2.2, Learn tab
 //   #/2.2/sim           topic 2.2, Simulate tab   (#/2.2/sim/1 = second simulation)
 //   #/2.2/cpp           topic 2.2, C++ Code tab
+//   #/2.2/csharp        topic 2.2, C# Code tab
 //   #/4.6/learn/4.6.2   topic 4.6, scrolled to subsection 4.6.2
 //   #/cpp-types         the C++ types used by the code examples
 (function () {
@@ -154,7 +155,7 @@
     if (!parts.length) return { page: "home" };
     if (parts[0] === "cpp-types") return { page: "cpp-types" };
     if (!sectionById[parts[0]]) return { page: "home" };
-    const tab = ["learn", "sim", "cpp"].includes(parts[1]) ? parts[1] : "learn";
+    const tab = ["learn", "simple", "sim", "cpp", "csharp"].includes(parts[1]) ? parts[1] : "learn";
     return { page: "topic", id: parts[0], tab, sub: parts[2] };
   }
 
@@ -259,8 +260,9 @@
     const t = L3D.topics[id];
     const idx = sections.indexOf(sec);
     const prev = sections[idx - 1], next = sections[idx + 1];
-    const sims = (t && t.sims) || [];
+    const sims = t ? ensureSimulationPair(t, sec) : [];
     const cpp = (t && t.cpp) || [];
+    const csharp = (t && t.csharp) || cpp.map(csharpBlock);
     document.title = `${id} ${sec.title} · Learn 3D Math`;
 
     main.innerHTML = `
@@ -271,8 +273,10 @@
           ${t && t.summary ? `<p class="lede">${t.summary}</p>` : ""}
           <nav class="tabs" role="tablist">
             <a role="tab" data-tab="learn" href="#/${id}">📖 Learn</a>
+            <a role="tab" data-tab="simple" href="#/${id}/simple">✨ Simplified</a>
             <a role="tab" data-tab="sim" href="#/${id}/sim">🎮 Simulate${sims.length > 1 ? ` <span class="badge">${sims.length}</span>` : ""}</a>
             <a role="tab" data-tab="cpp" href="#/${id}/cpp">💻 C++ Code${cpp.length ? ` <span class="badge">${cpp.length}</span>` : ""}</a>
+            <a role="tab" data-tab="csharp" href="#/${id}/csharp"># C# Code${csharp.length ? ` <span class="badge">${csharp.length}</span>` : ""}</a>
           </nav>
         </header>
 
@@ -295,6 +299,19 @@
               The structs (<code>Vector3D</code>, <code>Matrix3D</code>, …) are listed on the
               <a href="#/cpp-types">C++ types</a> page.</p>
             <div class="code-list">${cpp.map(codeBlock).join("")}</div>` : `<p class="empty">No C++ examples for this topic yet.</p>`}
+        </section>
+
+        <section class="tab-panel" data-panel="simple">
+          ${t ? simplifiedLesson(sec, t) : ""}
+          <div class="sim-host simple-host"></div>
+        </section>
+
+        <section class="tab-panel" data-panel="csharp">
+          ${csharp.length ? `
+            <p class="cpp-intro">Each block is a C# translation of the topic's C++ example. It assumes matching
+              engine math types such as <code>Vector3D</code> and <code>Matrix3D</code>, with operator overloads
+              equivalent to the C++ examples.</p>
+            <div class="code-list">${csharp.map(csharpCodeBlock).join("")}</div>` : `<p class="empty">No C# examples for this topic yet.</p>`}
         </section>
 
         <footer class="topic-foot">
@@ -368,10 +385,153 @@
       </div>`;
   }
 
+  // ------------------------------------------------------------ simplified learning
+  // Short, concrete language for a first encounter with every topic. The chapter
+  // family selects the analogy and the tiny sandbox; each page still keeps its own
+  // title and main lesson for readers who want the full treatment afterwards.
+  function simplePlan(sec) {
+    const plans = {
+      ch01: ["A game turns dots into a picture, like connecting-the-dots very quickly.", "A point travels through a few picture-making steps before it becomes a pixel.", "Move the dot and watch its screen position change."],
+      ch02: ["A vector is an arrow: it tells us which way to go and how far.", "arrow = direction + length", "Drag the arrow tip and notice its length."],
+      ch03: ["A matrix is a rule machine. Put in an arrow and it gives back a changed arrow.", "new arrow = rule × old arrow", "Turn the rule knob and compare before and after."],
+      ch04: ["A transform is a move, turn, or stretch for a shape.", "new place = move + turn + stretch", "Move the slider and watch the shape change."],
+      ch05: ["Geometry is the game world's measuring tape: it asks where things are and whether they meet.", "distance = how far two things are apart", "Move the point and see the shortest path."],
+      ch06: ["A ray is a pretend laser beam. We ask which object it touches first.", "hit = laser path meets shape", "Aim the laser and see whether it hits."],
+      ch07: ["Lighting is how bright something looks when a lamp shines on it.", "brightness = how much the light faces the surface", "Turn the light and watch brightness change."],
+      ch08: ["Visibility means drawing only what the camera can see, like looking through a window.", "draw it if it is inside the window", "Move the window over the objects."],
+      ch09: ["Polygons are flat paper shapes used to build game objects.", "big shape = small triangles joined together", "Move the line and see which part of a shape remains."],
+      ch10: ["A shadow appears when something blocks light, like your hand blocking a torch.", "shadow = light path is blocked", "Move the light and compare the shadow."],
+      ch11: ["A curve is a smooth path made by gently pulling control points.", "path = a smooth blend between guide points", "Drag a guide point and shape the path."],
+      ch12: ["Collision means two game things try to use the same space.", "collision = distance is small enough", "Move the ball toward the obstacle."],
+      ch13: ["Physics tracks where something is, how fast it moves, and how it speeds up or slows down.", "new place = old place + movement", "Change the push and watch the object travel."],
+      ch14: ["Rotational physics is about things that spin, like a playground merry-go-round.", "spin changes direction around a center", "Turn the angle and watch the spinning arrow."],
+      ch15: ["Fluid and cloth are lots of tiny points tugging on their neighbours.", "each point shares its wobble with nearby points", "Make one point move and watch the ripple."],
+      ch16: ["Numerical methods are careful guessing steps that let a computer solve hard math.", "smaller steps usually make a better answer", "Change the step size and compare the path."],
+      app: ["This is a handy math tool box for ideas used throughout 3D games.", "a formula is a short recipe", "Move the point and connect numbers to a picture."],
+    };
+    return plans[sec.chapter.id] || plans.app;
+  }
+
+  function simplifiedLesson(sec, topic) {
+    const [idea, recipe, tryIt] = simplePlan(sec);
+    const formula = topic.keyFormulas && topic.keyFormulas[0];
+    return `<div class="lesson simplified-lesson">
+      <div class="key"><h2>In one simple idea</h2><p>${idea}</p><p><strong>This topic:</strong> ${sec.title}.</p></div>
+      <h2>Think of it like this</h2><p>${recipe}. You do not need to memorize the hard version first; start by changing one thing and watching what happens.</p>
+      <h2>Easy formula words</h2><p><strong>${formula ? formula[0] : "The rule"}:</strong> ${recipe}.</p>
+      <div class="note"><strong>Try it:</strong> ${tryIt} Then return to the Learn tab when you want the full math explanation.</div>
+    </div>`;
+  }
+
+  function mountSimplifiedSim(sec) {
+    stopSim();
+    const host = $(".simple-host", main);
+    if (!host) return;
+    host.innerHTML = `<div class="sim-head"><h2>Try it yourself</h2><div class="sim-help"><p>Use one slider. Watch the picture change. That is the core idea before the detailed mathematics.</p></div></div><div class="sim-root"></div>`;
+    activeSim = new L3D.Sim($(".sim-root", host));
+    const { stage, controls, readout } = activeSim.layout({ side: "bottom" });
+    const view = activeSim.view2d(stage, { range: 4, height: 330 }); const out = activeSim.readout(readout);
+    const amount = activeSim.slider(controls, { label: "Move it", min: -3, max: 3, step: .1, value: 1.5, onInput: () => view.redraw() });
+    const chapter = sec.chapter.id;
+    view.onDraw((v) => {
+      const x = amount.value; v.grid(); v.axes({ ticks: true });
+      if (["ch11", "ch15"].includes(chapter)) { const pts = Array.from({ length: 41 }, (_, i) => { const u = -3 + i * .15; return [u, Math.sin(u * 1.5) * x * .35]; }); v.polyline(pts, { color: "a", width: 3 }); v.point([0, 0], { color: "e", label: "start here" }); }
+      else if (["ch07", "ch10"].includes(chapter)) { v.circle([0, 0], 1.25, { color: "a", fill: "a", fillAlpha: .18 }); v.arrow([0, 0], [x, 2.5], { color: "g", label: "light" }); v.text([-2.8, -2.7], x > 0 ? "more light" : "light moved away", { color: x > 0 ? "c" : "e", size: 16 }); }
+      else if (["ch12", "ch08", "ch09"].includes(chapter)) { v.rect([-1.2, -1], [1.2, 1], { color: "c", fill: "c", fillAlpha: .1 }); v.circle([x, 0], .45, { color: Math.abs(x) < 1.65 ? "e" : "a", fill: "a", fillAlpha: .25 }); }
+      else { v.arrow([0, 0], [x, x * .55], { color: "a", label: "change" }); v.circle([x, x * .55], .16, { color: "c", fill: "c" }); }
+      out.set(activeSim.rows([["topic", sec.id], ["your number", L3D.math.fmt(x)], ["what changed", "the picture"]]));
+    });
+  }
+
+  // Older chapters often have one strong 2D/raster simulation but no spatial
+  // counterpart. Add a lightweight 3D companion on demand, rather than copying
+  // another renderer into dozens of chapter files. It is appended only once per
+  // topic and is disposed through the normal L3D.Sim lifecycle.
+  function ensureSimulationPair(topic, sec) {
+    const sims = topic.sims || (topic.sims = []);
+    // Geometry already supplies bespoke "- 3D scene" simulations. Other
+    // chapters receive exactly one companion unless one was added previously.
+    if (sims.some((s) => /3D scene|3D spatial companion/.test(s.title || ""))) return sims;
+    sims.push({
+      title: `${sec.title} - 3D spatial companion`,
+      help: `<p>Orbit the scene and change the orientation. This companion puts the topic's vectors, axes, and spatial scale into a 3D coordinate frame.</p>`,
+      mount(sim) {
+        const { stage, controls, readout } = sim.layout();
+        const view = sim.view3d(stage, { height: 440, distance: 8, yaw: 0.72, pitch: 0.4 });
+        const out = sim.readout(readout);
+        const heading = sim.slider(controls, { label: "Heading", min: -180, max: 180, step: 1, value: 35, unit: "°", onInput: () => view.redraw() });
+        const elevation = sim.slider(controls, { label: "Elevation", min: -75, max: 75, step: 1, value: 25, unit: "°", onInput: () => view.redraw() });
+        const scale = sim.slider(controls, { label: "Spatial scale", min: 0.5, max: 4, step: 0.1, value: 2, onInput: () => view.redraw() });
+        view.onDraw((v) => {
+          const h = L3D.math.rad(heading.value), e = L3D.math.rad(elevation.value), r = scale.value;
+          const q = [r * Math.cos(e) * Math.cos(h), r * Math.sin(e), r * Math.cos(e) * Math.sin(h)];
+          v.grid({ size: 5, step: 1 }); v.axes({ length: 2 });
+          v.arrow([0, 0, 0], q, { color: "a", label: "state" });
+          v.sphere(q, 0.18, { fill: "a" });
+          v.line([0, 0, 0], [q[0], 0, q[2]], { color: "muted", dash: [5, 4] });
+          v.line([q[0], 0, q[2]], q, { color: "c", dash: [5, 4] });
+          out.set(sim.rows([["topic", sec.id], ["x", L3D.math.fmt(q[0])], ["y", L3D.math.fmt(q[1])], ["z", L3D.math.fmt(q[2])], ["length", L3D.math.fmt(r)]]));
+        });
+      },
+    });
+    return sims;
+  }
+
+  // Chapters may optionally provide an explicit `csharp` array. Otherwise convert the
+  // focused C++ example at render time, keeping every topic's two code views in sync.
+  function csharpBlock(b) {
+    return { ...b, code: cppToCSharp(b.code) };
+  }
+
+  function cppToCSharp(code) {
+    let translated = L3D.cpp.dedent(code)
+      .replace(/#include[^\n]*\n/g, "")
+      .replace(/\binline\s+/g, "")
+      .replace(/\bconst\s+([A-Za-z_]\w*)\s*&/g, "$1")
+      .replace(/\b([A-Za-z_]\w*)\s*&\s*(\w+)/g, "out $1 $2")
+      .replace(/\bconst\s+/g, "")
+      .replace(/\bauto\b/g, "var")
+      .replace(/\bstd::vector\s*<\s*([^>]+)\s*>/g, "List<$1>")
+      .replace(/\.push_back\s*\(/g, ".Add(")
+      .replace(/\buint(?:8|16|32|64)_t\b/g, "uint")
+      .replace(/\bint(?:8|16|32|64)_t\b/g, "int")
+      .replace(/\bsize_t\b/g, "int")
+      .replace(/\bstatic_cast\s*<\s*([^>]+)\s*>\s*\(/g, "($1)(")
+      .replace(/\b(Vector2D|Vector3D|Vector4D|Point3D|Matrix3D|Matrix4D|Quaternion|Plane|Ray)\s*\(/g, "new $1(")
+      .replace(/\bstd::sqrt\b/g, "MathF.Sqrt")
+      .replace(/\bstd::sin\b/g, "MathF.Sin")
+      .replace(/\bstd::cos\b/g, "MathF.Cos")
+      .replace(/\bstd::tan\b/g, "MathF.Tan")
+      .replace(/\bstd::abs\b/g, "MathF.Abs")
+      .replace(/\bstd::min\b/g, "MathF.Min")
+      .replace(/\bstd::max\b/g, "MathF.Max")
+      .replace(/\bnullptr\b/g, "null")
+      .replace(/\btrue\b/g, "true")
+      .replace(/\bfalse\b/g, "false");
+    // The source blocks are free C++ functions. Put them in a C# static class so
+    // copied code has the natural C# compilation context rather than looking like C++.
+    translated = translated.replace(/^(\s*)(?!if\b|for\b|while\b|switch\b)([A-Za-z_]\w*(?:\s*<[^>]+>)?)\s+([A-Za-z_]\w*)\s*\(([^\n]*)\)\s*\{/m,
+      "$1public static $2 $3($4) {");
+    return `using System;\nusing System.Collections.Generic;\n\npublic static class TopicMath\n{\n${translated.split("\n").map((line) => line ? "    " + line : "").join("\n")}\n}`;
+  }
+
+  function csharpCodeBlock(b) {
+    return `
+      <div class="code-card">
+        <div class="code-card-head">
+          <h3>${b.title}</h3>
+          <button class="copy-btn" type="button">Copy</button>
+        </div>
+        ${b.formula ? `<div class="code-formula">\\[${b.formula}\\]</div>` : ""}
+        ${b.note ? `<div class="code-note">${b.note}</div>` : ""}
+        <pre class="code"><code class="language-csharp">${escapeHtml(L3D.cpp.dedent(b.code))}</code></pre>
+      </div>`;
+  }
+
   const escapeHtml = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
   function enhanceCode(root) {
-    root.querySelectorAll("code.language-cpp, pre.cpp code").forEach((el) => {
+    root.querySelectorAll("code.language-cpp, code.language-csharp, pre.cpp code").forEach((el) => {
       if (el.dataset.hl) return;
       el.dataset.hl = "1";
       el.innerHTML = L3D.cpp.highlight(el.textContent);
@@ -400,6 +560,8 @@
       const sims = (t && t.sims) || [];
       const index = Math.min(+sub || 0, Math.max(0, sims.length - 1));
       mountSim(sims[index], index);
+    } else if (tab === "simple") {
+      mountSimplifiedSim(sectionById[id]);
     } else {
       stopSim();
     }

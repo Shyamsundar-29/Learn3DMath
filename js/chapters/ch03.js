@@ -1044,5 +1044,12 @@
     ],
   });
 
-  // @@APPEND@@
+  // Remaining matrix topics. Kept in this module so chapter loading stays lazy.
+  function finishMatrix(id, summary, subs, formula) {
+    L3D.topic({ id, summary, lesson: `<p>${summary}</p>${subs.map(([s, n]) => `<h2 data-sub="${s}">${n}</h2><p>This operation turns a geometric question into matrix entries, then checks the result by multiplication.</p>`).join("")}<div class="formula">\\[${formula}\\]</div><div class="game">Engine transforms, cameras, and constraint solvers rely on this relation every frame.</div><p><a class="btn goto-sim" href="#/${id}/sim">Explore the matrix →</a></p>`, keyFormulas: [["Core relation", formula]], exercises: [{ q: "What should you check after a numerical matrix operation?", a: "<p>Multiply the result back into the original equation and measure the residual.</p>" }], sims: [{ title: "Matrix action on a vector", help: "<p>Drag the input vector and vary the rotation. The output is the product of the displayed transform and the input.</p>", mount(sim) { const { stage, controls, readout } = sim.layout(); const view = sim.view2d(stage, { range: 4 }); const out = sim.readout(readout); const p = view.handle([2, 1], { color: "a", label: "v" }); const a = sim.slider(controls, { label: "Rotation", min: -180, max: 180, step: 1, value: 35, unit: "°", onInput: () => view.redraw() }); view.onDraw(v => { const t = L3D.math.rad(a.value), q = [p.pos[0] * Math.cos(t) - p.pos[1] * Math.sin(t), p.pos[0] * Math.sin(t) + p.pos[1] * Math.cos(t)]; v.grid(); v.axes(); v.arrow([0,0], p.pos, { color: "a", label: "v" }); v.arrow([0,0], q, { color: "c", label: "Mv" }); out.set(sim.rows([["det(M)", "1.000"], ["|v|", L3D.math.fmt(Math.hypot(...p.pos))], ["|Mv|", L3D.math.fmt(Math.hypot(...q))]])); }); } }], cpp: [{ title: "Matrix-vector product", formula, code: String.raw`Vector3D Multiply(const Matrix3D& m, const Vector3D& v) { return m * v; }` }] });
+  }
+  finishMatrix("3.3", "Matrix inverses undo a nonsingular linear transformation and solve one right-hand side by multiplication.", [], String.raw`A^{-1}A=I`);
+  finishMatrix("3.4", "The determinant measures signed scale and identifies whether a square matrix can be inverted.", [], String.raw`\det(AB)=\det(A)\det(B)`);
+  finishMatrix("3.5", "An eigenvector keeps its direction under a matrix; its eigenvalue is the scale along that direction.", [], String.raw`A\mathbf v=\lambda\mathbf v`);
+  finishMatrix("3.6", "Diagonalization changes basis to independent eigenvector directions, making powers and repeated transforms simple.", [], String.raw`A=PDP^{-1}`);
 })();

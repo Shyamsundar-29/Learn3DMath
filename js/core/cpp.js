@@ -5,7 +5,8 @@
   const KEYWORDS = new Set(("alignas alignof auto bool break case catch char class const constexpr continue default delete do " +
     "double else enum explicit extern false float for friend if inline int long namespace new noexcept nullptr operator " +
     "private protected public return short signed sizeof static static_cast struct switch template this throw true try " +
-    "typedef typename uint8_t uint16_t uint32_t int32_t size_t union unsigned using virtual void volatile while").split(" "));
+    "typedef typename uint8_t uint16_t uint32_t int32_t size_t union unsigned using var virtual void volatile while " +
+    "out ref readonly async await namespace").split(" "));
 
   const TOKEN = new RegExp([
     "(?<comment>\\/\\/[^\\n]*|\\/\\*[\\s\\S]*?\\*\\/)",
