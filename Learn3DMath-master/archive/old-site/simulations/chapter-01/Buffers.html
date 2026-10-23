@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <style>
+      :root { --ink:#172033; --muted:#64748b; --line:#dbe3ee; --blue:#2563eb; }
+      * { box-sizing:border-box; }
+      body { margin:0; background:#f8fafc; color:var(--ink); font:14px/1.5 system-ui; }
+      main { max-width:1080px; margin:auto; padding:25px; }
+      h2 { margin:0; }
+      p { color:var(--muted); }
+      .lesson { margin:16px 0; padding:10px 14px; border-left:4px solid var(--blue); background:#eff6ff; }
+      .diagram { display:grid; grid-template-columns:1fr 42px 1fr 42px 1fr; align-items:center; gap:8px; margin:24px 0; }
+      .column { display:grid; gap:10px; }
+      .box { min-height:70px; padding:15px; border:1px solid var(--line); border-radius:99px; background:#fff; text-align:center; }
+      .box strong { display:block; }
+      .box small { color:var(--muted); }
+      .gpu { border-color:#7dd3fc; background:#f0f9ff; }
+      .vram { border-color:#86efac; background:#f0fdf4; }
+      .arrow { color:#94a3b8; font-size:25px; text-align:center; }
+      .flow { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin:18px 0; }
+      .step { padding:8px 10px; border-radius:6px; background:#e2e8f0; color:#475569; font-size:12px; }
+      .step.active { background:#2563eb; color:#fff; }
+      .controls { display:flex; flex-wrap:wrap; align-items:center; gap:12px; }
+      .controls button { padding:9px 13px; border:0; border-radius:6px; background:#2563eb; color:#fff; font-weight:700; cursor:pointer; }
+      .status { color:#1d4ed8; font-weight:600; }
+      .cards { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-top:20px; }
+      .card { padding:13px; border:1px solid var(--line); border-radius:8px; background:#fff; }
+      .card b { display:block; margin-bottom:5px; }
+      @media (max-width:700px) { .diagram { grid-template-columns:1fr; } .arrow { transform:rotate(90deg); } .cards { grid-template-columns:1fr; } }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h2>Graphics Processors Simulation</h2>
+      <p>Observe how CPU draw calls stream to the GPU and utilize VRAM buffers.</p>
+
+      <div class="lesson"><b>Key idea:</b> The CPU submits commands asynchronously while the GPU renders into off-screen VRAM (Back Buffer) before swapping.</div>
+
+      <div class="diagram">
+        <div class="column">
+          <div class="box"><strong>CPU Application</strong><small>Game logic & draw calls</small></div>
+          <div class="box"><strong>Main Memory</strong><small>Scene RAM</small></div>
+        </div>
+        <div class="arrow">→</div>
+        <div class="column">
+          <div class="box"><strong>Graphics API / Driver</strong><small>OpenGL / DirectX / Vulkan</small></div>
+          <div class="box"><strong>Command Buffer</strong><small>Queued GPU work</small></div>
+        </div>
+        <div class="arrow">→</div>
+        <div class="column">
+          <div class="box gpu"><strong>GPU Cores</strong><small>Executes rendering</small></div>
+          <div class="box vram"><strong>VRAM</strong><small>Front/Back Buffers, Depth, Textures</small></div>
+        </div>
+      </div>
+
+      <h3>Frame Execution Flow</h3>
+      <div class="flow" id="flow">
+        <span class="step">1. CPU issue command</span>
+        <span class="step">2. Driver queues command</span>
+        <span class="step">3. GPU renders to Back Buffer</span>
+        <span class="step">4. Buffer Swap</span>
+        <span class="step">5. Display on Monitor</span>
+      </div>
+      <div class="controls"><button id="run">Simulate 1 Frame</button><span id="status" class="status">Idle</span></div>
+    </main>
+
+    <script>
+      const steps = [...document.querySelectorAll('.step')];
+      const run = document.querySelector('#run');
+      const status = document.querySelector('#status');
+      let running = false;
+
+      run.onclick = () => {
+        if (running) return;
+        running = true;
+        steps.forEach((step) => step.classList.remove('active'));
+        let index = 0;
+        status.textContent = 'CPU submitting work...';
+
+        const timer = setInterval(() => {
+          steps.forEach((step) => step.classList.remove('active'));
+          steps[index].classList.add('active');
+          if (index === 2) status.textContent = 'GPU is actively rasterizing into VRAM Back Buffer...';
+          if (index === 3) status.textContent = 'Buffer Swap: Back Buffer becomes visible Front Buffer.';
+          index += 1;
+          if (index === steps.length) {
+            clearInterval(timer);
+            setTimeout(() => { status.textContent = 'Frame Complete!'; running = false; }, 500);
+          }
+        }, 700);
+      };
+    </script>
+  </body>
+</html>

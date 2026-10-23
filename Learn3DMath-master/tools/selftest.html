@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Self-test</title>
+    <!--
+      Automated check for one chapter file:
+        http://localhost:8080/tools/selftest.html?ch=ch02
+      (or ?ch=all). It loads the chapter, checks that every section in js/data/toc.js has a
+      complete topic, renders all math (reporting KaTeX errors), mounts every simulation,
+      wiggles its sliders / checkboxes / selects / buttons / canvases, and reports any errors.
+      The page title becomes "PASS" or "FAIL"; details are in #report.
+    -->
+    <script>
+      // Background tabs pause requestAnimationFrame; use a timer so animation loops still run.
+      window.requestAnimationFrame = (cb) => setTimeout(() => cb(performance.now()), 16);
+      window.cancelAnimationFrame = (id) => clearTimeout(id);
+    </script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" />
+    <link rel="stylesheet" href="../assets/css/site.css" />
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+    <script src="../js/core/math.js"></script>
+    <script src="../js/core/sim.js"></script>
+    <script src="../js/core/cpp.js"></script>
+    <script src="../js/data/toc.js"></script>
+    <style>
+      body { padding: 16px; }
+      #stage { width: 1000px; position: relative; }
+      #report { white-space: pre-wrap; font: 13px/1.5 var(--mono); }
+    </style>
+  </head>
+  <body>
+    <pre id="report">running…</pre>
+    <div id="stage"></div>
+    <script>
+      (async function () {
+        const errors = [];
+        const warnings = [];
+        const log = [];
+        let context = "loading";
+        window.addEventListener("error", (e) => errors.push(`[${context}] ${e.message} (${(e.filename || "").split("/").pop()}:${e.lineno}:${e.colno})`));
+        window.addEventListener("unhandledrejection", (e) => errors.push(`[${context}] unhandled rejection: ${e.reason}`));
+        const origError = console.error;
+        console.error = (...args) => { errors.push(`[${context}] console.error: ${args.map(String).join(" ")}`); origError(...args); };
+
+        L3D.topics = {};
+        L3D.topic = (def) => { L3D.topics[def.id] = def; };
+
+        const want = new URLSearchParams(location.search).get("ch") || "all";
+        const chapters = L3D.toc.filter((c) => want === "all" || c.id === want);
+        if (!chapters.length) errors.push(`unknown chapter "${want}"`);
+
+        const load = (src) => new Promise((resolve) => {
+          const s = document.createElement("script");
+          s.src = "../" + src;
+          s.onload = () => resolve(true);
+          s.onerror = () => resolve(false);
+          document.head.append(s);
+        });
+        const frame = () => new Promise((r) => requestAnimationFrame(() => r()));
+        const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+        const stage = document.getElementById("stage");
+
+        function renderMath(el, where) {
+          window.renderMathInElement(el, {
+            delimiters: [{ left: "\\[", right: "\\]", display: true }, { left: "\\(", right: "\\)", display: false }],
+            throwOnError: false,
+            ignoredTags: ["script", "noscript", "style", "textarea", "pre", "code", "option"],
+          });
+          el.querySelectorAll(".katex-error").forEach((e) => errors.push(`[${where}] KaTeX error: ${e.title || e.textContent}`));
+          // leftover delimiters usually mean unbalanced \( \) or a math expression broken by HTML
+          const text = el.textContent;
+          if (/\\\(|\\\)|\\\[|\\\]/.test(text)) {
+            const m = text.match(/.{0,60}(\\\(|\\\)|\\\[|\\\]).{0,60}/);
+            errors.push(`[${where}] unrendered math (a raw < or > inside TeX? write \\lt / \\gt or &lt; / &gt;) near: ${m ? m[0] : ""}`);
+          }
+        }
+
+        for (const ch of chapters) {
+          context = ch.file;
+          const ok = await load(ch.file);
+          if (!ok) { errors.push(`could not load ${ch.file}`); continue; }
+
+          for (const sec of ch.sections) {
+            const t = L3D.topics[sec.id];
+            context = `topic ${sec.id}`;
+            if (!t) { errors.push(`[${sec.id}] topic not registered`); continue; }
+            const sims = t.sims || [];
+            const cpp = t.cpp || [];
+            if (!t.summary) warnings.push(`[${sec.id}] missing summary`);
+            if (!t.lesson || t.lesson.length < 1500) warnings.push(`[${sec.id}] lesson is short (${(t.lesson || "").length} chars)`);
+            if (!sims.length) errors.push(`[${sec.id}] no simulations`);
+            if (!cpp.length) errors.push(`[${sec.id}] no C++ blocks`);
+            if (!t.keyFormulas || !t.keyFormulas.length) warnings.push(`[${sec.id}] no keyFormulas`);
+            if (!t.exercises || !t.exercises.length) warnings.push(`[${sec.id}] no exercises`);
+
+            // subsection headings promised by the TOC
+            const holder = document.createElement("div");
+            holder.className = "lesson";
+            holder.innerHTML = t.lesson || "";
+            for (const [sid] of sec.subs) {
+              if (!holder.querySelector(`[data-sub="${sid}"]`)) errors.push(`[${sec.id}] lesson has no <h2 data-sub="${sid}"> heading`);
+            }
+            stage.append(holder);
+            renderMath(holder, `${sec.id} lesson`);
+
+            const extra = document.createElement("div");
+            extra.innerHTML =
+              (t.keyFormulas || []).map(([l, tex]) => `<div>\\[${tex}\\]</div>`).join("") +
+              (t.exercises || []).map((e) => `<div>${e.q}</div><div>${e.a}</div>`).join("") +
+              sims.map((s) => `<div>${s.help || ""}</div>`).join("") +
+              cpp.map((b) => `<div>${b.formula ? `\\[${b.formula}\\]` : ""}${b.note || ""}</div>`).join("");
+            stage.append(extra);
+            renderMath(extra, `${sec.id} formulas/exercises/help/cpp`);
+            holder.remove();
+            extra.remove();
+
+            cpp.forEach((b, i) => {
+              if (!b.title || !b.code || !b.code.trim()) errors.push(`[${sec.id}] C++ block ${i} missing title or code`);
+              const code = b.code || "";
+              const bal = (o, c) => code.split(o).length - code.split(c).length;
+              if (bal("{", "}") || bal("(", ")")) warnings.push(`[${sec.id}] C++ block "${b.title}" has unbalanced braces/parens`);
+              try { L3D.cpp.highlight(L3D.cpp.dedent(code)); } catch (e) { errors.push(`[${sec.id}] highlighter failed on "${b.title}": ${e}`); }
+            });
+
+            for (let i = 0; i < sims.length; i++) {
+              const def = sims[i];
+              context = `${sec.id} sim ${i} "${def.title}"`;
+              if (!def.title || typeof def.mount !== "function") { errors.push(`[${context}] needs title and mount()`); continue; }
+              const root = document.createElement("div");
+              stage.append(root);
+              const sim = new L3D.Sim(root);
+              const before = errors.length;
+              try {
+                const cleanup = def.mount(sim);
+                if (typeof cleanup === "function") sim.cleanup(cleanup);
+                await frame(); await frame(); await sleep(60);
+                // wiggle every control
+                for (const input of root.querySelectorAll("input[type=range]")) {
+                  for (const v of [input.min, input.max, (+input.min + +input.max) / 2]) {
+                    input.value = v;
+                    input.dispatchEvent(new Event("input", { bubbles: true }));
+                    await frame();
+                  }
+                }
+                for (const input of root.querySelectorAll("input[type=checkbox]")) {
+                  for (let k = 0; k < 2; k++) { input.click(); await frame(); }
+                }
+                for (const sel of root.querySelectorAll("select")) {
+                  for (const o of [...sel.options]) { sel.value = o.value; sel.dispatchEvent(new Event("change", { bubbles: true })); await frame(); }
+                }
+                for (const b of root.querySelectorAll(".seg button")) { b.click(); await frame(); }
+                for (const b of root.querySelectorAll("button.btn")) { b.click(); await frame(); }
+                // drag across each canvas
+                for (const c of root.querySelectorAll("canvas")) {
+                  const r = c.getBoundingClientRect();
+                  if (r.width < 10 || r.height < 10) { errors.push(`[${context}] canvas has no size (${r.width}x${r.height})`); continue; }
+                  const ev = (type, fx, fy) => c.dispatchEvent(new PointerEvent(type, {
+                    bubbles: true, clientX: r.left + r.width * fx, clientY: r.top + r.height * fy, pointerId: 1, button: 0, buttons: 1,
+                  }));
+                  for (const [fx, fy] of [[0.5, 0.5], [0.3, 0.6], [0.7, 0.3]]) {
+                    ev("pointerdown", fx, fy); ev("pointermove", fx + 0.05, fy + 0.04); ev("pointermove", fx + 0.1, fy - 0.05); ev("pointerup", fx + 0.1, fy - 0.05);
+                    await frame();
+                  }
+                  c.dispatchEvent(new WheelEvent("wheel", { bubbles: true, cancelable: true, deltaY: 120, clientX: r.left + 10, clientY: r.top + 10 }));
+                }
+                await sleep(120);
+                await frame();
+              } catch (e) {
+                errors.push(`[${context}] threw: ${e && e.stack ? e.stack.split("\n").slice(0, 3).join(" | ") : e}`);
+              }
+              try { sim.destroy(); } catch (e) { errors.push(`[${context}] destroy threw: ${e}`); }
+              root.remove();
+              log.push(`${errors.length === before ? "ok  " : "FAIL"} ${sec.id} sim ${i}: ${def.title}`);
+            }
+            log.push(`---- ${sec.id} ${sec.title}: ${sims.length} sims, ${cpp.length} C++ blocks, ${(t.exercises || []).length} exercises, lesson ${(t.lesson || "").length} chars`);
+          }
+        }
+
+        context = "done";
+        const pass = errors.length === 0;
+        document.title = pass ? "PASS" : "FAIL";
+        document.getElementById("report").textContent =
+          `${pass ? "PASS" : "FAIL"}  (${errors.length} errors, ${warnings.length} warnings)\n\n` +
+          (errors.length ? "ERRORS\n" + errors.join("\n") + "\n\n" : "") +
+          (warnings.length ? "WARNINGS\n" + warnings.join("\n") + "\n\n" : "") +
+          log.join("\n");
+      })();
+    </script>
+  </body>
+</html>
