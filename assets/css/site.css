@@ -141,6 +141,16 @@ code { font-family: var(--mono); font-size: .9em; background: var(--panel-2); pa
 .scrim { display: none; }
 
 /* ---------------------------------------------------------------- sidebar nav */
+.nav-book { margin: 2px 0 8px; border: 1px solid transparent; border-radius: 10px; }
+.nav-book.open { border-color: var(--line); background: color-mix(in srgb, var(--panel-2) 36%, transparent); }
+.nav-book-head { display: flex; align-items: center; gap: 8px; width: 100%; padding: 10px 9px; border: 0; border-radius: 9px; background: none; color: var(--ink); font: 700 13px/1.25 var(--font); text-align: left; cursor: pointer; }
+.nav-book-head:hover { background: var(--panel-2); }
+.nav-book-icon { color: var(--accent); font-size: 12px; transition: transform .18s; }
+.nav-book:not(.open) .nav-book-icon { transform: rotate(-90deg); }
+.nav-book-title { flex: 1; }
+.nav-book-count { color: var(--muted); font-size: 11px; font-weight: 500; }
+.nav-book-chapters { display: none; padding: 2px 4px 8px; }
+.nav-book.open .nav-book-chapters { display: block; }
 .nav-chapter { border-radius: 8px; }
 .nav-ch-head {
   display: flex; align-items: center; gap: 10px; width: 100%;
@@ -217,6 +227,15 @@ code { font-family: var(--mono); font-size: .9em; background: var(--panel-2); pa
 }
 .tabs a:hover { color: var(--ink); text-decoration: none; }
 .tabs a.on { color: var(--accent-ink); border-color: var(--accent); }
+  .simplified-lesson { max-width: 760px; }
+  .simplified-lesson h2 { margin-top: 28px; }
+  .simple-rule { display: inline-block; padding: 12px 16px; border-radius: 10px; background: var(--panel-2); color: var(--accent-ink); font-weight: 750; font-size: 1.08em; }
+  .simple-steps { padding-left: 24px; }
+  .simple-steps li { margin: 10px 0; }
+  .simple-story { padding: 2px 18px; border-left: 4px solid var(--accent); background: var(--panel-2); border-radius: 0 10px 10px 0; }
+  .trig-table { display: block; max-width: 100%; overflow-x: auto; border-collapse: collapse; font-size: 13px; }
+  .trig-table th, .trig-table td { padding: 8px 10px; border: 1px solid var(--line); text-align: center; white-space: nowrap; }
+  .trig-table th { background: var(--panel-2); color: var(--ink); }
 .badge { display: inline-block; min-width: 18px; padding: 0 5px; border-radius: 9px; background: var(--panel-2); font-size: 11px; text-align: center; }
 .loading, .empty { padding: 40px; color: var(--muted); text-align: center; }
 .empty h3 { color: var(--ink); }

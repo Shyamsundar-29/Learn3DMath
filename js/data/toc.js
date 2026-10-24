@@ -194,3 +194,50 @@ L3D.toc = [
     ],
   },
 ];
+
+// The library is the top level of the navigation tree. Add another object here
+// to publish another book with the same lesson/simulation application.
+// Topic ids must stay unique across the library for legacy #/topic links.
+L3D.library = [
+  {
+    id: "basic-math",
+    shortTitle: "Basic Math for 3D",
+    title: "Basic Math for 3D & Graphics",
+    author: "Learn 3D Math",
+    edition: "Foundation course",
+    chapters: [
+      { id: "bm01", number: "1", title: "Number Sense", file: "js/chapters/basic-math.js", blurb: "Numbers, operations, fractions, decimals, and percentages.", sections: [
+        { id: "BM1.1", title: "Numbers and Number Lines", subs: [] },
+        { id: "BM1.2", title: "Adding and Subtracting", subs: [] },
+        { id: "BM1.3", title: "Multiplying and Dividing", subs: [] },
+        { id: "BM1.4", title: "Fractions, Decimals, and Percentages", subs: [] },
+        { id: "BM1.5", title: "Ratios and Proportions", subs: [] },
+        { id: "BM1.6", title: "Types of Numbers", subs: [] },
+      ] },
+      { id: "bm02", number: "2", title: "Shapes and Coordinates", file: "js/chapters/basic-math.js", blurb: "Points, grids, distance, shapes, and right triangles.", sections: [
+        { id: "BM2.1", title: "Points on a Grid", subs: [] },
+        { id: "BM2.2", title: "Distance and Length", subs: [] },
+        { id: "BM2.3", title: "Perimeter and Area", subs: [] },
+        { id: "BM2.4", title: "Right Triangles", subs: [] },
+        { id: "BM2.5", title: "3D Coordinates", subs: [] },
+        { id: "BM2.6", title: "2D Shape Formulas", subs: [] },
+        { id: "BM2.7", title: "3D Shape Formulas", subs: [] },
+      ] },
+      { id: "bm03", number: "3", title: "Angles and Trigonometry", file: "js/chapters/basic-math.js", blurb: "Turns, theta, triangles, sine, cosine, tangent, and radians.", sections: [
+        { id: "BM3.1", title: "Angles and Turns", subs: [] },
+        { id: "BM3.2", title: "Types of Angles and Triangles", subs: [] },
+        { id: "BM3.3", title: "Sine, Cosine, and Tangent", subs: [] },
+        { id: "BM3.4", title: "Degrees and Radians", subs: [] },
+        { id: "BM3.5", title: "The Six Trigonometric Ratios", subs: [] },
+      ] },
+    ],
+  },
+  {
+    id: "learn-3d-math",
+    shortTitle: "Learn 3D Math",
+    title: L3D.book.title,
+    author: L3D.book.author,
+    edition: L3D.book.edition,
+    chapters: L3D.toc,
+  },
+];

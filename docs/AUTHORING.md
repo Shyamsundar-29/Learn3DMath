@@ -12,6 +12,19 @@ The chapter list lives in `js/data/toc.js`. Each chapter's topics live in one fi
 `js/chapters/chNN.js` (appendices: `js/chapters/appendix.js`). **`js/chapters/ch02.js` is the reference
 example.** Copy its patterns.
 
+## Adding another book
+
+The sidebar is a library tree: **book → chapter → topic**. `L3D.library` in
+`js/data/toc.js` holds the books. To add one, create its chapter list and add a
+book object with an `id`, `shortTitle`, `title`, `author`, and `chapters` array.
+Each chapter uses the same shape already used by `L3D.toc` (`id`, `number`,
+`title`, `file`, `sections`). Its topic files use `L3D.topic(...)` exactly like
+the current book, so they can use the same Learn, Simplified, Simulate, C++,
+and C# tab system and the same simulation toolkit.
+
+Keep topic IDs unique across books for now. That keeps old links such as
+`#/2.2` working while the library grows.
+
 ---
 
 ## 1. File skeleton

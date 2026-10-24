@@ -33,8 +33,11 @@
     L3D.topics[def.id] = def;
   };
 
-  const chapters = L3D.toc;
-  const sections = chapters.flatMap((ch) => ch.sections.map((s) => ({ ...s, chapter: ch })));
+  // A library can contain several books. Chapters and their reusable topic
+  // simulations sit underneath each book in this tree.
+  const books = L3D.library || [{ id: "default", shortTitle: L3D.book.title, chapters: L3D.toc }];
+  const chapters = books.flatMap((book) => book.chapters.map((ch) => ({ ...ch, book })));
+  const sections = chapters.flatMap((ch) => ch.sections.map((s) => ({ ...s, chapter: ch, book: ch.book })));
   const sectionById = Object.fromEntries(sections.map((s) => [s.id, s]));
 
   const loaded = {};
@@ -103,38 +106,46 @@
   const nav = $("#nav");
   const search = $("#search");
   let route = { page: "home" };
+  const openBooks = new Set(store.get("openBooks", [books[0] && books[0].id]));
   const openChapters = new Set(store.get("open", ["ch01"]));
 
   function renderSidebar() {
     const q = search.value.trim().toLowerCase();
     const current = route.page === "topic" ? route.id : null;
-    nav.innerHTML = chapters.map((ch) => {
-      const list = ch.sections.filter((s) =>
-        !q || `${s.id} ${s.title} ${ch.title} ${s.subs.map((x) => x[1]).join(" ")}`.toLowerCase().includes(q));
-      if (!list.length) return "";
-      const isOpen = q || openChapters.has(ch.id) || ch.sections.some((s) => s.id === current);
-      const count = ch.sections.filter((s) => done.has(s.id)).length;
-      return `
-        <div class="nav-chapter${isOpen ? " open" : ""}" data-ch="${ch.id}">
-          <button class="nav-ch-head" type="button" aria-expanded="${!!isOpen}">
-            <span class="nav-ch-num">${ch.number}</span>
-            <span class="nav-ch-title">${ch.title}</span>
-            <span class="nav-ch-count${count === ch.sections.length ? " full" : ""}">${count}/${ch.sections.length}</span>
-          </button>
-          <div class="nav-sections">
-            ${list.map((s) => `
-              <a class="nav-sec${s.id === current ? " active" : ""}${done.has(s.id) ? " done" : ""}" href="#/${s.id}">
-                <span class="nav-sec-num">${s.id}</span><span>${s.title}</span>
-              </a>
-              ${s.id === current && s.subs.length ? `<div class="nav-subs">${s.subs.map(([sid, st]) =>
-                `<a href="#/${s.id}/learn/${sid}" class="nav-sub">${sid} ${st}</a>`).join("")}</div>` : ""}
-            `).join("")}
-          </div>
-        </div>`;
+    nav.innerHTML = books.map((book) => {
+      const matchingChapters = book.chapters.map((ch) => ({ ...ch, list: ch.sections.filter((s) =>
+        !q || `${s.id} ${s.title} ${ch.title} ${book.title} ${s.subs.map((x) => x[1]).join(" ")}`.toLowerCase().includes(q)) }))
+        .filter((ch) => ch.list.length);
+      if (!matchingChapters.length) return "";
+      const bookOpen = q || openBooks.has(book.id) || matchingChapters.some((ch) => ch.sections.some((s) => s.id === current));
+      const bookDone = book.chapters.flatMap((ch) => ch.sections).filter((s) => done.has(s.id)).length;
+      const bookTotal = book.chapters.flatMap((ch) => ch.sections).length;
+      return `<section class="nav-book${bookOpen ? " open" : ""}" data-book="${book.id}">
+        <button class="nav-book-head" type="button" aria-expanded="${!!bookOpen}">
+          <span class="nav-book-icon">▾</span><span class="nav-book-title">${book.shortTitle || book.title}</span>
+          <span class="nav-book-count">${bookDone}/${bookTotal}</span>
+        </button>
+        <div class="nav-book-chapters">${matchingChapters.map((ch) => {
+          const isOpen = q || openChapters.has(ch.id) || ch.sections.some((s) => s.id === current);
+          const count = ch.sections.filter((s) => done.has(s.id)).length;
+          return `<div class="nav-chapter${isOpen ? " open" : ""}" data-ch="${ch.id}">
+            <button class="nav-ch-head" type="button" aria-expanded="${!!isOpen}"><span class="nav-ch-num">${ch.number}</span><span class="nav-ch-title">${ch.title}</span><span class="nav-ch-count${count === ch.sections.length ? " full" : ""}">${count}/${ch.sections.length}</span></button>
+            <div class="nav-sections">${ch.list.map((s) => `<a class="nav-sec${s.id === current ? " active" : ""}${done.has(s.id) ? " done" : ""}" href="#/${s.id}"><span class="nav-sec-num">${s.id}</span><span>${s.title}</span></a>${s.id === current && s.subs.length ? `<div class="nav-subs">${s.subs.map(([sid, st]) => `<a href="#/${s.id}/learn/${sid}" class="nav-sub">${sid} ${st}</a>`).join("")}</div>` : ""}`).join("")}</div>
+          </div>`;
+        }).join("")}</div>
+      </section>`;
     }).join("") || `<p class="nav-empty">No topics match “${search.value}”.</p>`;
   }
 
   nav.addEventListener("click", (e) => {
+    const bookHead = e.target.closest(".nav-book-head");
+    if (bookHead) {
+      const id = bookHead.closest(".nav-book").dataset.book;
+      openBooks.has(id) ? openBooks.delete(id) : openBooks.add(id);
+      store.set("openBooks", [...openBooks]);
+      renderSidebar();
+      return;
+    }
     const head = e.target.closest(".nav-ch-head");
     if (head) {
       const id = head.parentElement.dataset.ch;
@@ -386,60 +397,110 @@
   }
 
   // ------------------------------------------------------------ simplified learning
-  // Short, concrete language for a first encounter with every topic. The chapter
-  // family selects the analogy and the tiny sandbox; each page still keeps its own
-  // title and main lesson for readers who want the full treatment afterwards.
-  function simplePlan(sec) {
-    const plans = {
-      ch01: ["A game turns dots into a picture, like connecting-the-dots very quickly.", "A point travels through a few picture-making steps before it becomes a pixel.", "Move the dot and watch its screen position change."],
-      ch02: ["A vector is an arrow: it tells us which way to go and how far.", "arrow = direction + length", "Drag the arrow tip and notice its length."],
-      ch03: ["A matrix is a rule machine. Put in an arrow and it gives back a changed arrow.", "new arrow = rule × old arrow", "Turn the rule knob and compare before and after."],
-      ch04: ["A transform is a move, turn, or stretch for a shape.", "new place = move + turn + stretch", "Move the slider and watch the shape change."],
-      ch05: ["Geometry is the game world's measuring tape: it asks where things are and whether they meet.", "distance = how far two things are apart", "Move the point and see the shortest path."],
-      ch06: ["A ray is a pretend laser beam. We ask which object it touches first.", "hit = laser path meets shape", "Aim the laser and see whether it hits."],
-      ch07: ["Lighting is how bright something looks when a lamp shines on it.", "brightness = how much the light faces the surface", "Turn the light and watch brightness change."],
-      ch08: ["Visibility means drawing only what the camera can see, like looking through a window.", "draw it if it is inside the window", "Move the window over the objects."],
-      ch09: ["Polygons are flat paper shapes used to build game objects.", "big shape = small triangles joined together", "Move the line and see which part of a shape remains."],
-      ch10: ["A shadow appears when something blocks light, like your hand blocking a torch.", "shadow = light path is blocked", "Move the light and compare the shadow."],
-      ch11: ["A curve is a smooth path made by gently pulling control points.", "path = a smooth blend between guide points", "Drag a guide point and shape the path."],
-      ch12: ["Collision means two game things try to use the same space.", "collision = distance is small enough", "Move the ball toward the obstacle."],
-      ch13: ["Physics tracks where something is, how fast it moves, and how it speeds up or slows down.", "new place = old place + movement", "Change the push and watch the object travel."],
-      ch14: ["Rotational physics is about things that spin, like a playground merry-go-round.", "spin changes direction around a center", "Turn the angle and watch the spinning arrow."],
-      ch15: ["Fluid and cloth are lots of tiny points tugging on their neighbours.", "each point shares its wobble with nearby points", "Make one point move and watch the ripple."],
-      ch16: ["Numerical methods are careful guessing steps that let a computer solve hard math.", "smaller steps usually make a better answer", "Change the step size and compare the path."],
-      app: ["This is a handy math tool box for ideas used throughout 3D games.", "a formula is a short recipe", "Move the point and connect numbers to a picture."],
+  function simplifiedLesson(sec, topic) {
+    const plan = (L3D.simplified && L3D.simplified[sec.id]) || {
+      idea: topic.summary || "This is a useful 3D math idea.", rule: "small steps make a clear rule",
+      example: "Try changing one value and watch what happens.", tryIt: "Open the visual example below.",
     };
-    return plans[sec.chapter.id] || plans.app;
+    return `<div class="lesson simplified-lesson">
+      <div class="key"><h2>The big idea</h2><p>${plan.idea}</p></div>
+      <h2>A little story</h2><div class="simple-story">${simpleStory(sec, plan)}</div>
+      <h2>Say it in everyday words</h2><p>${plan.rule}. This is a short recipe, not a test you need to memorise.</p>
+      <h2>Walk through it slowly</h2><ol class="simple-steps"><li><strong>Start:</strong> Find the thing the topic is talking about: an arrow, shape, light, or moving object.</li><li><strong>Change one thing:</strong> Use the easy rule to decide what changes.</li><li><strong>Check the picture:</strong> The drawing should match the result of the rule.</li></ol>
+      <h2>A tiny example</h2><p>${plan.example}</p>
+      <div class="note"><strong>Now you try:</strong> ${plan.tryIt} The small playground below is made for this simplified lesson, so you can focus on one idea at a time.</div>
+    </div>`;
   }
 
-  function simplifiedLesson(sec, topic) {
-    const [idea, recipe, tryIt] = simplePlan(sec);
-    const formula = topic.keyFormulas && topic.keyFormulas[0];
-    return `<div class="lesson simplified-lesson">
-      <div class="key"><h2>In one simple idea</h2><p>${idea}</p><p><strong>This topic:</strong> ${sec.title}.</p></div>
-      <h2>Think of it like this</h2><p>${recipe}. You do not need to memorize the hard version first; start by changing one thing and watching what happens.</p>
-      <h2>Easy formula words</h2><p><strong>${formula ? formula[0] : "The rule"}:</strong> ${recipe}.</p>
-      <div class="note"><strong>Try it:</strong> ${tryIt} Then return to the Learn tab when you want the full math explanation.</div>
-    </div>`;
+  function simpleStory(sec, plan) {
+    const kind = simpleDemoKind(sec.id);
+    const stories = {
+      dots: "<p><strong>Imagine:</strong> You are making a paper robot from dot stickers. The computer does the same job, but it joins millions of dots every second to make a game picture.</p>",
+      pixels: "<p><strong>Imagine:</strong> Your screen is a giant sheet of square stickers. The game decides which stickers belong inside a shape, then colours only those squares.</p>",
+      transform: "<p><strong>Imagine:</strong> You have a drawing on a clear sheet. You can slide the sheet, turn it, or stretch it. A transformation is the computer's set of instructions for doing that.</p>",
+      arrows: "<p><strong>Imagine:</strong> You are giving a tiny robot directions: walk this way and this far. An arrow is a quick picture of those directions.</p>",
+      window: "<p><strong>Imagine:</strong> You are looking through a window at a playground. You only need to draw the things you can see through the window, not everything behind you.</p>",
+      rgb: "<p><strong>Imagine:</strong> You have three tiny flashlights: red, green, and blue. Shine them together in different amounts and they can make almost any screen colour.</p>",
+      light: "<p><strong>Imagine:</strong> You are holding a torch near a ball. Moving the torch or turning the ball changes which parts look bright.</p>",
+      wave: "<p><strong>Imagine:</strong> You flick one point on a skipping rope or pond. The wiggle travels to nearby places. Curves, cloth, and water all use that idea.</p>",
+      collision: "<p><strong>Imagine:</strong> A game needs to stop a ball before it goes through a wall. First it asks a very simple question: are these two things touching?</p>",
+      graph: "<p><strong>Imagine:</strong> You are following a moving toy and marking where it is every moment. A graph is the picture made by all of those marks.</p>",
+      circle: "<p><strong>Imagine:</strong> Look at the hand of a clock. As it turns around a circle, its angle tells us exactly where its tip is.</p>",
+    };
+    return stories[kind] || `<p><strong>Imagine:</strong> You are exploring <strong>${sec.title}</strong> in a game. Start with the simple picture, change one thing, and notice what the computer must work out.</p>`;
+  }
+
+  function simpleDemoKind(id) {
+    if (id === "1.1") return "dots";
+    if (id === "1.3") return "pixels";
+    if (/^1\.2|^3\.|^4\./.test(id)) return "transform";
+    if (/^2\.|^5\.1|^5\.2|^5\.5|^5\.6|^6\.|^14\./.test(id)) return "arrows";
+    if (/^5\.3|^5\.4|^8\.|^9\.|^10\./.test(id)) return "window";
+    if (id === "7.1") return "rgb";
+    if (/^7\./.test(id)) return "light";
+    if (/^11\.|^15\./.test(id)) return "wave";
+    if (/^12\./.test(id)) return "collision";
+    if (/^13\.|^16\./.test(id) || id === "D") return "graph";
+    if (id === "B") return "circle";
+    return "arrows";
   }
 
   function mountSimplifiedSim(sec) {
     stopSim();
     const host = $(".simple-host", main);
     if (!host) return;
-    host.innerHTML = `<div class="sim-head"><h2>Try it yourself</h2><div class="sim-help"><p>Use one slider. Watch the picture change. That is the core idea before the detailed mathematics.</p></div></div><div class="sim-root"></div>`;
+    const plan = L3D.simplified && L3D.simplified[sec.id];
+    host.innerHTML = `<div class="sim-head"><h2>Play the story</h2><div class="sim-help"><p>Made for <strong>${sec.id} ${sec.title}</strong>. Change the controls, then compare the flat 2D picture with the 3D scene.</p></div></div><div class="sim-root"></div>`;
     activeSim = new L3D.Sim($(".sim-root", host));
     const { stage, controls, readout } = activeSim.layout({ side: "bottom" });
-    const view = activeSim.view2d(stage, { range: 4, height: 330 }); const out = activeSim.readout(readout);
-    const amount = activeSim.slider(controls, { label: "Move it", min: -3, max: 3, step: .1, value: 1.5, onInput: () => view.redraw() });
-    const chapter = sec.chapter.id;
+    const flatStage = document.createElement("div"), spaceStage = document.createElement("div");
+    stage.append(flatStage, spaceStage);
+    spaceStage.hidden = true;
+    const view = activeSim.view2d(flatStage, { range: 4, height: 330 });
+    const space = activeSim.view3d(spaceStage, { height: 330, distance: 8, yaw: .7, pitch: .38 });
+    const out = activeSim.readout(readout);
+    const kind = simpleDemoKind(sec.id);
+    const mode = activeSim.segmented(controls, { label: "Look at it in", options: [["flat", "2D picture"], ["space", "3D scene"]], value: "flat", onChange: () => { flatStage.hidden = mode.value !== "flat"; spaceStage.hidden = mode.value !== "space"; view.redraw(); space.redraw(); } });
+    const amount = activeSim.slider(controls, { label: kind === "rgb" ? "Red light" : "Move / turn", min: -3, max: 3, step: .1, value: 1.5, onInput: () => { view.redraw(); space.redraw(); } });
+    const second = activeSim.slider(controls, { label: kind === "light" ? "Lamp height" : kind === "collision" ? "Object size" : "Second change", min: .4, max: 3, step: .1, value: 1.4, onInput: () => { view.redraw(); space.redraw(); } });
+    activeSim.note(controls, `<p><strong>Your story goal:</strong> ${plan ? plan.tryIt : "Change a control and describe what changed."}</p>`);
     view.onDraw((v) => {
-      const x = amount.value; v.grid(); v.axes({ ticks: true });
-      if (["ch11", "ch15"].includes(chapter)) { const pts = Array.from({ length: 41 }, (_, i) => { const u = -3 + i * .15; return [u, Math.sin(u * 1.5) * x * .35]; }); v.polyline(pts, { color: "a", width: 3 }); v.point([0, 0], { color: "e", label: "start here" }); }
-      else if (["ch07", "ch10"].includes(chapter)) { v.circle([0, 0], 1.25, { color: "a", fill: "a", fillAlpha: .18 }); v.arrow([0, 0], [x, 2.5], { color: "g", label: "light" }); v.text([-2.8, -2.7], x > 0 ? "more light" : "light moved away", { color: x > 0 ? "c" : "e", size: 16 }); }
-      else if (["ch12", "ch08", "ch09"].includes(chapter)) { v.rect([-1.2, -1], [1.2, 1], { color: "c", fill: "c", fillAlpha: .1 }); v.circle([x, 0], .45, { color: Math.abs(x) < 1.65 ? "e" : "a", fill: "a", fillAlpha: .25 }); }
-      else { v.arrow([0, 0], [x, x * .55], { color: "a", label: "change" }); v.circle([x, x * .55], .16, { color: "c", fill: "c" }); }
-      out.set(activeSim.rows([["topic", sec.id], ["your number", L3D.math.fmt(x)], ["what changed", "the picture"]]));
+      const x = amount.value;
+      v.grid({ step: 1 }); v.axes({ ticks: true });
+      if (kind === "dots") {
+        const pts = [[-2, -1], [x, 1.5], [2, -1]]; v.polygon(pts, { color: "a", fill: "a", fillAlpha: .22 }); pts.forEach((p, i) => v.point(p, { color: "a", r: 8, label: "dot " + (i + 1) }));
+      } else if (kind === "pixels") {
+        for (let i = -3; i <= 3; i++) for (let j = -2; j <= 2; j++) if (j <= 1 - Math.abs(i - x * .4)) v.rect([i, j], [i + .88, j + .88], { color: "a", fill: "a", fillAlpha: .5 });
+      } else if (kind === "transform") {
+        const old = [[-1, -1], [1, -1], [1, 1], [-1, 1]]; const changed = old.map(([a, b]) => [a * (1 + x * .15) + x * .35, b * (1 - x * .08)]); v.polygon(old, { color: "muted", dash: [5, 4] }); v.polygon(changed, { color: "a", fill: "a", fillAlpha: .2 });
+      } else if (kind === "window") {
+        v.rect([-1.8, -1.3], [1.8, 1.3], { color: "c", fill: "c", fillAlpha: .08 }); for (let i = -3; i <= 3; i++) v.circle([i, Math.sin(i * 2 + x) * 2], .18, { color: Math.abs(i) < 2 ? "a" : "muted", fill: "a", fillAlpha: .35 });
+      } else if (kind === "rgb") {
+        const r = Math.round(128 + x * 35), g = Math.round(128 - x * 20), b = 160; v.rect([-2.5, -1.5], [2.5, 1.5], { color: `rgb(${r},${g},${b})`, fill: `rgb(${r},${g},${b})`, fillAlpha: 1 }); v.text([0, 0], "mixed colour", { color: "#fff", align: "center", size: 17 });
+      } else if (kind === "light") {
+        v.circle([0, 0], 1.35, { color: "a", fill: "a", fillAlpha: .12 }); v.arrow([x, 2.6], [0, .6], { color: "g", label: "light" }); v.text([0, -2.2], x > 0 ? "light moved right" : "light moved left", { color: "fg", align: "center", size: 15 });
+      } else if (kind === "wave") {
+        const pts = Array.from({ length: 49 }, (_, i) => { const u = -3.6 + i * .15; return [u, Math.sin(u * 1.6) * x * .42]; }); v.polyline(pts, { color: "a", width: 3 }); v.point([0, 0], { color: "e", label: "middle" });
+      } else if (kind === "collision") {
+        v.rect([-1.1, -1], [1.1, 1], { color: "c", fill: "c", fillAlpha: .12 }); const hit = Math.abs(x) < 1.65; v.circle([x, 0], .48, { color: hit ? "e" : "a", fill: hit ? "e" : "a", fillAlpha: .32 }); v.text([0, -2], hit ? "touching!" : "not touching", { color: hit ? "e" : "c", align: "center", size: 16 });
+      } else if (kind === "graph") {
+        v.plot((u) => .25 * x * u * u - 1.4, { from: -3, to: 3, color: "a", width: 3 }); v.point([x * .5, .25 * x * (x * .5) ** 2 - 1.4], { color: "e", label: "look here" });
+      } else if (kind === "circle") {
+        v.circle([0, 0], 2, { color: "a" }); v.arrow([0, 0], [2 * Math.cos(x), 2 * Math.sin(x)], { color: "e", label: "angle" });
+      } else {
+        v.arrow([0, 0], [x, x * .55], { color: "a", label: "arrow" }); v.arrow([0, 0], [-x * .4, 1.4], { color: "c", label: "other arrow" });
+      }
+      out.set(activeSim.rows([["topic", sec.id], ["move / turn", L3D.math.fmt(x)], ["second change", L3D.math.fmt(second.value)], ["notice", "the picture changes for a reason"]]));
+    });
+    space.onDraw((v) => {
+      const x = amount.value, s = second.value;
+      v.grid({ size: 6, step: 1 }); v.axes({ length: 2 });
+      if (kind === "collision") { v.box([-1.2, -1, -1], [1.2, 1, 1], { color: "c", fill: "c", alpha: .18 }); v.sphere([x, 0, 0], s * .28, { fill: Math.abs(x) < 1.5 ? "e" : "a", alpha: .75 }); }
+      else if (kind === "light") { v.sphere([0, 0, 0], 1.2, { fill: "a", alpha: .35 }); v.arrow([x, s, 2.5], [0, 0, 0], { color: "g", label: "lamp light" }); }
+      else if (kind === "window") { v.box([-1.8, -1.2, -1.2], [1.8, 1.2, 1.2], { color: "c", wire: true }); v.sphere([x, 0, 0], .3, { fill: "a" }); }
+      else if (kind === "wave") { for (let i = -3; i <= 3; i++) v.sphere([i, Math.sin(i + x) * .35 * s, 0], .13, { fill: "a" }); }
+      else if (kind === "rgb") { v.box([-1.6, -1, -1], [1.6, 1, 1], { color: `rgb(${Math.round(128 + x * 35)},${Math.round(128 - x * 20)},160)`, fill: `rgb(${Math.round(128 + x * 35)},${Math.round(128 - x * 20)},160)`, alpha: .8 }); }
+      else { v.arrow([0, 0, 0], [x, s * .45, 1.4], { color: "a", label: "change" }); v.sphere([x, s * .45, 1.4], .22, { fill: "a" }); }
     });
   }
 
