@@ -426,6 +426,9 @@
       collision: "<p><strong>Imagine:</strong> A game needs to stop a ball before it goes through a wall. First it asks a very simple question: are these two things touching?</p>",
       graph: "<p><strong>Imagine:</strong> You are following a moving toy and marking where it is every moment. A graph is the picture made by all of those marks.</p>",
       circle: "<p><strong>Imagine:</strong> Look at the hand of a clock. As it turns around a circle, its angle tells us exactly where its tip is.</p>",
+      vk_queue: "<p><strong>Imagine:</strong> A restaurant kitchen ticket rail. Your code writes a batch of orders into a ticket book, clips it to the rail (the queue), and the chef (the GPU) cooks them asynchronously.</p>",
+      vk_pipeline: "<p><strong>Imagine:</strong> A robotic factory line. Once built, it is immutable and lightning fast. Work enters at the start and comes out fully assembled at the end.</p>",
+      vk_memory: "<p><strong>Imagine:</strong> You have items on your kitchen table (CPU RAM) and a rapid-cook microwave (GPU VRAM). You stage ingredients on the table, then move them into the fast machine.</p>",
     };
     return stories[kind] || `<p><strong>Imagine:</strong> You are exploring <strong>${sec.title}</strong> in a game. Start with the simple picture, change one thing, and notice what the computer must work out.</p>`;
   }
@@ -442,6 +445,14 @@
     if (/^12\./.test(id)) return "collision";
     if (/^13\.|^16\./.test(id) || id === "D") return "graph";
     if (id === "B") return "circle";
+    if (/^VK[1-9]/.test(id)) {
+      if (/^VK1\.1|^VK1\.3|^VK1\.4|^VK4\.1|^VK4\.2|^VK4\.3|^VK4\.4|^VK9\.4/.test(id)) return "vk_queue";
+      if (/^VK3\.|^VK8\.2|^VK9\.1|^VK9\.2/.test(id)) return "vk_pipeline";
+      if (/^VK5\.|^VK6\.|^VK9\.3/.test(id)) return "vk_memory";
+      if (/^VK7\.|^VK8\.4/.test(id)) return "rgb";
+      if (/^VK2\./.test(id)) return "window";
+      return "dots";
+    }
     return "arrows";
   }
 
@@ -487,6 +498,26 @@
         v.plot((u) => .25 * x * u * u - 1.4, { from: -3, to: 3, color: "a", width: 3 }); v.point([x * .5, .25 * x * (x * .5) ** 2 - 1.4], { color: "e", label: "look here" });
       } else if (kind === "circle") {
         v.circle([0, 0], 2, { color: "a" }); v.arrow([0, 0], [2 * Math.cos(x), 2 * Math.sin(x)], { color: "e", label: "angle" });
+      } else if (kind === "vk_queue") {
+        const jobs = ["Record", "Submit", "Wait Fence", "Present"];
+        jobs.forEach((j, i) => {
+          const on = (Math.floor(x + 3) % 4) === i;
+          v.rect([-3.6 + i * 1.85, -0.6], [-2.0 + i * 1.85, 0.6], { color: on ? "a" : "muted", fill: on ? "a" : "panel", fillAlpha: .3 });
+          v.text([-2.8 + i * 1.85, 0], j, { color: on ? "a" : "fg", align: "center", size: 12 });
+        });
+        v.arrow([-3.5, -1.5], [3.5, -1.5], { color: "g", label: "GPU Queue Timeline" });
+      } else if (kind === "vk_pipeline") {
+        const stages = ["Input Assembly", "Vertex Shader", "Rasterizer", "Fragment Shader", "Color Blend"];
+        stages.forEach((st, i) => {
+          v.rect([-3.8 + i * 1.55, -0.7], [-2.4 + i * 1.55, 0.7], { color: "a", fill: "panel", fillAlpha: .3 });
+          v.text([-3.1 + i * 1.55, 0], st, { color: "fg", align: "center", size: 10 });
+        });
+      } else if (kind === "vk_memory") {
+        v.rect([-3.2, 0.3], [3.2, 1.4], { color: "c", fill: "c", fillAlpha: .2 });
+        v.text([0, 0.85], "Device-Local VRAM (High Speed)", { color: "fg", align: "center" });
+        v.rect([-3.2, -1.4], [3.2, -0.3], { color: "b", fill: "b", fillAlpha: .2 });
+        v.text([0, -0.85], "Host-Visible RAM (CPU Mappable)", { color: "fg", align: "center" });
+        v.arrow([0, -0.3], [0, 0.3], { color: "a", label: "vkCmdCopyBuffer Staging" });
       } else {
         v.arrow([0, 0], [x, x * .55], { color: "a", label: "arrow" }); v.arrow([0, 0], [-x * .4, 1.4], { color: "c", label: "other arrow" });
       }
@@ -500,6 +531,9 @@
       else if (kind === "window") { v.box([-1.8, -1.2, -1.2], [1.8, 1.2, 1.2], { color: "c", wire: true }); v.sphere([x, 0, 0], .3, { fill: "a" }); }
       else if (kind === "wave") { for (let i = -3; i <= 3; i++) v.sphere([i, Math.sin(i + x) * .35 * s, 0], .13, { fill: "a" }); }
       else if (kind === "rgb") { v.box([-1.6, -1, -1], [1.6, 1, 1], { color: `rgb(${Math.round(128 + x * 35)},${Math.round(128 - x * 20)},160)`, fill: `rgb(${Math.round(128 + x * 35)},${Math.round(128 - x * 20)},160)`, alpha: .8 }); }
+      else if (kind === "vk_queue") { v.box([-2.2, -0.6, -1], [2.2, 0.6, 1], { color: "a", fill: "a", alpha: .2 }); v.arrow([-2.2, 1.2, 0], [2.2, 1.2, 0], { color: "g", label: "GPU Queue Stream" }); }
+      else if (kind === "vk_pipeline") { v.box([-2.5, -0.8, -0.8], [2.5, 0.8, 0.8], { color: "c", wire: true }); v.sphere([x * 0.7, 0, 0], 0.35, { fill: "a" }); }
+      else if (kind === "vk_memory") { v.box([-2.2, 0.5, -1], [2.2, 1.5, 1], { color: "c", fill: "c", alpha: .25 }); v.box([-2.2, -1.5, -1], [2.2, -0.5, 1], { color: "b", fill: "b", alpha: .25 }); v.arrow([0, -0.5, 0], [0, 0.5, 0], { color: "a", label: "PCI-e Staging Transfer" }); }
       else { v.arrow([0, 0, 0], [x, s * .45, 1.4], { color: "a", label: "change" }); v.sphere([x, s * .45, 1.4], .22, { fill: "a" }); }
     });
   }

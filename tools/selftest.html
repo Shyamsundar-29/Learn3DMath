@@ -49,7 +49,8 @@
         L3D.topic = (def) => { L3D.topics[def.id] = def; };
 
         const want = new URLSearchParams(location.search).get("ch") || "all";
-        const chapters = L3D.toc.filter((c) => want === "all" || c.id === want);
+        const allChapters = (L3D.library ? L3D.library.flatMap((b) => b.chapters) : L3D.toc);
+        const chapters = allChapters.filter((c) => want === "all" || c.id === want);
         if (!chapters.length) errors.push(`unknown chapter "${want}"`);
 
         const load = (src) => new Promise((resolve) => {
