@@ -233,6 +233,28 @@ L3D.library = [
     ],
   },
   {
+    id: "learn-opengl",
+    shortTitle: "Learn OpenGL",
+    title: "Learn OpenGL: Graphics API Foundations",
+    author: "Learn 3D Math",
+    edition: "API course",
+    chapters: [
+      { id: "gl01", number: "1", title: "OpenGL Foundations", file: "js/chapters/learn-opengl.js", blurb: "What the OpenGL API is and how its state and objects work.", sections: [
+        { id: "GL1.1", title: "What Is OpenGL?", subs: [] },
+        { id: "GL1.2", title: "The OpenGL State Machine", subs: [] },
+      ] },
+      { id: "gl02", number: "2", title: "Your First Renderer", file: "js/chapters/learn-opengl.js", blurb: "Create a window, clear the screen, and draw your first triangle.", sections: [
+        { id: "GL2.1", title: "Window and OpenGL Context", subs: [] },
+        { id: "GL2.2", title: "The Render Loop", subs: [] },
+        { id: "GL2.3", title: "Hello Triangle", subs: [] },
+      ] },
+      { id: "gl03", number: "3", title: "GPU Programs and Images", file: "js/chapters/learn-opengl.js", blurb: "Shaders, vertex data, uniforms, and textures.", sections: [
+        { id: "GL3.1", title: "Shaders", subs: [] },
+        { id: "GL3.2", title: "Textures", subs: [] },
+      ] },
+    ],
+  },
+  {
     id: "learn-3d-math",
     shortTitle: "Learn 3D Math",
     title: L3D.book.title,

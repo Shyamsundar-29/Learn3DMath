@@ -4,6 +4,13 @@
   "use strict";
   const p = (idea, rule, example, tryIt) => ({ idea, rule, example, tryIt });
   L3D.simplified = {
+    "GL1.1": p("OpenGL is a set of drawing commands that lets your program ask the graphics card to make a picture.", "your C++ code gives commands; the GPU draws", "glClear paints over the old picture so a new frame can begin.", "Choose an API command and see its one job."),
+    "GL1.2": p("OpenGL remembers what is active. Binding picks the object that the next command will change or use.", "bind first, then change or draw", "If Buffer A is bound, uploading data changes Buffer A, not Buffer B.", "Choose a buffer and change its data size."),
+    "GL2.1": p("A window is where the picture appears. An OpenGL context is the graphics work area attached to that window.", "make window, make context, load OpenGL", "GLFW makes the window; GLAD finds the OpenGL commands.", "Complete the setup checklist in order."),
+    "GL2.2": p("A game redraws many pictures every second. The repeating list of jobs is called the render loop.", "input → clear → draw → show → repeat", "The screen can show a moving object because the next frame is drawn again and again.", "Change how many jobs a frame performs."),
+    "GL2.3": p("A triangle starts with three corner points. OpenGL connects them and fills the space inside.", "3 vertices → 1 triangle", "The draw call says: start at vertex 0 and draw 3 vertices as a triangle.", "Drag a corner and reshape the triangle."),
+    "GL3.1": p("Shaders are tiny programs that run on the graphics card. One places corners and one colours pixels.", "vertex shader places; fragment shader colours", "A fragment shader can make every pixel in a triangle orange.", "Change the fragment colour."),
+    "GL3.2": p("A texture is an image used by a shape. Texture coordinates point to the correct spot in that image.", "(u, v) chooses a colour from the image", "u = 0 is left, u = 1 is right; v = 0 is bottom, v = 1 is top.", "Move the texture-coordinate point across the image."),
     "BM1.1": p("Numbers are labels for how much or where. A number line turns them into places you can see.", "right means more; left means less", "Start at 2 and take 3 steps right: 2 + 3 = 5.", "Move the first number and count the jumps."),
     "BM1.2": p("Adding puts groups together. Subtracting takes part of a group away.", "add = put together; subtract = take away", "7 apples plus 4 apples makes 11 apples.", "Change both numbers and tell the story of the answer."),
     "BM1.3": p("Multiplying is fast adding of equal groups. Dividing is fair sharing into equal groups.", "3 groups of 4 = 12", "12 sweets shared by 3 children gives 4 each.", "Make groups with the two number controls."),
